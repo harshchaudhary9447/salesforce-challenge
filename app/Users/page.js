@@ -4,12 +4,22 @@ import { useEffect, useState } from "react";
 
 export default function Users() {
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [search, setSearch] = useState("");
+  const [orgFilter, setOrgFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [search, orgFilter, statusFilter, data]);
 
   // 🔥 Truncate helper
   const truncateText = (text, maxLength = 25) => {
@@ -29,10 +39,6 @@ export default function Users() {
       const org1Instance = localStorage.getItem("org1_instance_url");
       const org2Instance = localStorage.getItem("org2_instance_url");
 
-      if (!org1Token || !org2Token || !org1Instance || !org2Instance) {
-        throw new Error("Missing authentication data. Please login again.");
-      }
-
       const res = await fetch("/api/users", {
         method: "GET",
         headers: {
@@ -45,26 +51,82 @@ export default function Users() {
 
       const result = await res.json();
 
-      if (!res.ok) {
-        throw new Error(result.error || "Something went wrong");
-      }
+      if (!res.ok) throw new Error(result.error);
 
       setData(result);
     } catch (err) {
-      console.error(err);
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  // 🔥 Apply Filters
+  const applyFilters = () => {
+    let temp = [...data];
+
+    // 🔍 Search
+    if (search) {
+      temp = temp.filter((user) =>
+        [user.name, user.email, user.username]
+          .join(" ")
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      );
+    }
+
+    // 🎯 Org filter
+    if (orgFilter !== "all") {
+      temp = temp.filter((user) => user.org === orgFilter);
+    }
+
+    // ✅ Status filter
+    if (statusFilter !== "all") {
+      temp = temp.filter((user) =>
+        statusFilter === "active" ? user.isActive : !user.isActive,
+      );
+    }
+
+    setFilteredData(temp);
+  };
+
   if (loading) return <p style={styles.infoText}>Loading users...</p>;
-  if (error) return <p style={styles.errorText}>Error: {error}</p>;
+  if (error) return <p style={styles.errorText}>{error}</p>;
 
   return (
     <div style={styles.page}>
       <h2 style={styles.heading}>Users</h2>
 
+      {/* 🔥 FILTER SECTION */}
+      <div style={styles.filters}>
+        <input
+          type="text"
+          placeholder="Search by name, email, username..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={styles.input}
+        />
+
+        <select
+          value={orgFilter}
+          onChange={(e) => setOrgFilter(e.target.value)}
+          style={styles.select}>
+          <option value="all">All Orgs</option>
+          <option value="Org 1">Org 1</option>
+          <option value="Org 2">Org 2</option>
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          style={styles.select}>
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      {/* TABLE */}
       <div style={styles.tableWrapper}>
         <table style={styles.table}>
           <thead>
@@ -79,23 +141,15 @@ export default function Users() {
           </thead>
 
           <tbody>
-            {data.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
                 <td colSpan="6" style={styles.empty}>
                   No users found
                 </td>
               </tr>
             ) : (
-              data.map((user, index) => (
-                <tr
-                  key={index}
-                  style={styles.row}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background = "#f4f6f9")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "white")
-                  }>
+              filteredData.map((user, index) => (
+                <tr key={index} style={styles.row}>
                   {/* Name */}
                   <td style={tdStyle} title={user.name}>
                     {truncateText(user.name)}
@@ -112,15 +166,9 @@ export default function Users() {
                   </td>
 
                   {/* Profile */}
-                  <td style={tdStyle} title={user.profileName}>
-                    {user.profileName ? (
-                      truncateText(user.profileName)
-                    ) : (
-                      <span style={{ color: "#9ca3af" }}>—</span>
-                    )}
-                  </td>
+                  <td style={tdStyle}>{user.profileName || "—"}</td>
 
-                  {/* Status */}
+                  {/* Status Badge */}
                   <td style={tdStyle}>
                     <span
                       style={{
@@ -132,7 +180,7 @@ export default function Users() {
                     </span>
                   </td>
 
-                  {/* Org */}
+                  {/* Org Badge */}
                   <td style={tdStyle}>
                     <span
                       style={{
@@ -169,12 +217,30 @@ const styles = {
     color: "#1f2937",
   },
 
+  filters: {
+    display: "flex",
+    gap: "10px",
+    marginBottom: "15px",
+  },
+
+  input: {
+    padding: "8px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+    flex: 1,
+  },
+
+  select: {
+    padding: "8px",
+    borderRadius: "8px",
+    border: "1px solid #ccc",
+  },
+
   tableWrapper: {
     maxHeight: "80vh",
-    overflowY: "auto",
-    overflowX: "auto",
+    overflow: "auto",
     background: "white",
-    borderRadius: "14px",
+    borderRadius: "12px",
     border: "1px solid #e5e7eb",
     boxShadow: "0 6px 16px rgba(0,0,0,0.06)",
   },
@@ -186,15 +252,13 @@ const styles = {
   },
 
   headerRow: {
-    background: "#f8fafc",
-    borderBottom: "1px solid #e5e7eb",
+    background: "#f1f5f9",
     position: "sticky",
     top: 0,
-    zIndex: 1,
   },
 
   row: {
-    borderBottom: "1px solid #f1f5f9",
+    borderBottom: "1px solid #eee",
     transition: "0.2s",
   },
 
@@ -206,8 +270,8 @@ const styles = {
   },
 
   empty: {
-    padding: "30px",
     textAlign: "center",
+    padding: "20px",
     color: "#6b7280",
   },
 
@@ -221,14 +285,12 @@ const styles = {
 };
 
 const thStyle = {
-  padding: "14px",
+  padding: "12px",
+  textAlign: "left",
   fontSize: "13px",
-  fontWeight: "600",
-  textTransform: "uppercase",
   color: "#6b7280",
 };
 
 const tdStyle = {
-  padding: "14px",
-  fontSize: "14px",
+  padding: "12px",
 };
