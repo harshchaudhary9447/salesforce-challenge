@@ -4,20 +4,32 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import astreaLogo from "@/assets/astrea-logo.jpg";
+import Dashboard from "../dashboard/page";
+import DataTables from "../DataTables/page";
+import Orders from "../Orders/page";
+import Users from "../Users/page";
 
 export default function HomePage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState("dashboard");
+
   const [org1Token, setOrg1Token] = useState("");
   const [org2Token, setOrg2Token] = useState("");
+
+  const [org1Instance, setOrg1Instance] = useState("");
+  const [org2Instance, setOrg2Instance] = useState("");
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token1 = localStorage.getItem("org1_access_token");
     const token2 = localStorage.getItem("org2_access_token");
 
-    if (!token1 || !token2) {
+    const instance1 = localStorage.getItem("org1_instance_url");
+    const instance2 = localStorage.getItem("org2_instance_url");
+
+    if (!token1 || !token2 || !instance1 || !instance2) {
       localStorage.clear();
       router.push("/");
       return;
@@ -25,6 +37,9 @@ export default function HomePage() {
 
     setOrg1Token(token1);
     setOrg2Token(token2);
+    setOrg1Instance(instance1);
+    setOrg2Instance(instance2);
+
     setLoading(false);
   }, [router]);
 
@@ -36,21 +51,16 @@ export default function HomePage() {
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return (
-          <>
-            <h2 style={styles.heading}>Dashboard</h2>
-            <p>Welcome to your Salesforce Integration 🚀</p>
-          </>
-        );
+        return <Dashboard />;
 
       case "data":
-        return <h2 style={styles.heading}>Data Tables</h2>;
+        return <DataTables />;
 
       case "orders":
-        return <h2 style={styles.heading}>Orders</h2>;
+        return <Orders />;
 
       case "users":
-        return <h2 style={styles.heading}>Users</h2>;
+        return <Users />;
 
       default:
         return null;
@@ -114,17 +124,7 @@ export default function HomePage() {
       </div>
 
       {/* MAIN */}
-      <div style={styles.main}>
-        {renderContent()}
-
-        <div style={styles.tokenBox}>
-          <h3>Org 1 Token</h3>
-          <p style={styles.tokenText}>{org1Token}</p>
-
-          <h3>Org 2 Token</h3>
-          <p style={styles.tokenText}>{org2Token}</p>
-        </div>
-      </div>
+      <div style={styles.main}>{renderContent()}</div>
     </div>
   );
 }
@@ -204,24 +204,6 @@ const styles = {
     flex: 1,
     background: "#f6f8fb",
     padding: "30px",
-  },
-
-  heading: {
-    marginBottom: "10px",
-  },
-
-  tokenBox: {
-    marginTop: "30px",
-    background: "white",
-    padding: "20px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-  },
-
-  tokenText: {
-    wordBreak: "break-all",
-    fontSize: "12px",
-    color: "#333",
   },
 
   logoutBtn: {
